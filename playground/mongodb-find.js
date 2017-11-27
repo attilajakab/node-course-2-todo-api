@@ -8,8 +8,15 @@ MongoClient.connect('mongodb://localhost:27017/TodoApp', (err, db) => {
     
     console.log('Connected to MongoDB server');
 
+    var id = '5a1bd62dc851c59d95cd93cc';
+
+    if (!ObjectID.isValid(id)) {
+        // @TODO
+        // Handle invalid id.
+    }
+
     // db.collection('Todos').find({
-    //     _id: new ObjectID('5a1bd62dc851c59d95cd93cc')
+    //     _id: new ObjectID(id)
     // }).toArray().then((docs) => {
     //     console.log('Todos');
     //     console.log(JSON.stringify(docs, undefined, 2));
