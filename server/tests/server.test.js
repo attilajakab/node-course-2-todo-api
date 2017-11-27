@@ -1,14 +1,20 @@
 const expect = require('expect');
 const request = require('supertest');
+const { ObjectID } = require('mongodb');
 
 const { app } = require('./../server');
 const { Todo } = require('./../models/todo');
 
-const dummyTodos = [
-    {text: 'First test todo'},
-    {text: 'Second test todo'},
-    {text: 'Third test todo'}
-];
+const dummyTodos = [{
+    _id: new ObjectID(),
+    text: 'First test todo'
+},{
+    _id: new ObjectID(),
+    text: 'Second test todo'
+}, {
+    _id: new ObjectID(),
+    text: 'Third test todo'
+}];
 
 beforeEach(done => {
     Todo.remove({}).then(() => {
@@ -66,6 +72,36 @@ describe('GET /todos', () => {
             .expect(res => {
                 expect(res.body.length).toBe(dummyTodos.length);
             })
+            .end(done);
+    });
+});
+
+describe('GET /todos/:id', () => {
+    it('should get todo by id', (done) => {
+        request(app)
+            .get(`/todos/${dummyTodos[0]._id.toHexString()}`)
+            .expect(200)
+            .expect(res => {
+                expect(res.body.todo.text).toBe(dummyTodos[0].text);
+            })
+            .end(done);
+    });
+
+    it('should return 404 if todo not found', (done) => {
+        const nonExistentId = (new ObjectID()).toHexString();
+
+        request(app)
+            .get(`/todos/${nonExistentId}`)
+            .expect(404)
+            .end(done);
+    });
+
+    it('should return 404 for non-object id', (done) => {
+        const wrongObjectId = '123';
+        
+        request(app)
+            .get(`/todos/${wrongObjectId}`)
+            .expect(404)
             .end(done);
     });
 });
