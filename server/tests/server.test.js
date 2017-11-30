@@ -16,6 +16,7 @@ describe('POST /todos', () => {
         
         request(app)
             .post('/todos')
+            .set('x-auth', dummyUsers[0].tokens[0].token)
             .send({text})
             .expect(200)
             .expect(res => {
@@ -37,6 +38,7 @@ describe('POST /todos', () => {
     it('should not create a new todo with invalid body data', (done) => {
         request(app)
             .post('/todos')
+            .set('x-auth', dummyUsers[0].tokens[0].token)
             .send({})
             .expect(400)
             .end((err, res) => {
@@ -56,9 +58,10 @@ describe('GET /todos', () => {
     it('should get all todos', (done) => {
         request(app)
             .get('/todos')
+            .set('x-auth', dummyUsers[0].tokens[0].token)
             .expect(200)
             .expect(res => {
-                expect(res.body.length).toBe(dummyTodos.length);
+                expect(res.body.length).toBe(2);
             })
             .end(done);
     });
@@ -68,10 +71,19 @@ describe('GET /todos/:id', () => {
     it('should get todo by id', (done) => {
         request(app)
             .get(`/todos/${dummyTodos[0]._id.toHexString()}`)
+            .set('x-auth', dummyUsers[0].tokens[0].token)
             .expect(200)
             .expect(res => {
                 expect(res.body.todo.text).toBe(dummyTodos[0].text);
             })
+            .end(done);
+    });
+
+    it('should not get todo by id created by other user', (done) => {
+        request(app)
+            .get(`/todos/${dummyTodos[1]._id.toHexString()}`)
+            .set('x-auth', dummyUsers[0].tokens[0].token)
+            .expect(404)
             .end(done);
     });
 
@@ -80,6 +92,7 @@ describe('GET /todos/:id', () => {
 
         request(app)
             .get(`/todos/${nonExistentId}`)
+            .set('x-auth', dummyUsers[0].tokens[0].token)
             .expect(404)
             .end(done);
     });
@@ -89,6 +102,7 @@ describe('GET /todos/:id', () => {
         
         request(app)
             .get(`/todos/${wrongObjectId}`)
+            .set('x-auth', dummyUsers[0].tokens[0].token)
             .expect(404)
             .end(done);
     });
@@ -100,6 +114,7 @@ describe('DELETE /todos/:id', () => {
 
         request(app)
             .delete(`/todos/${id}`)
+            .set('x-auth', dummyUsers[1].tokens[0].token)
             .expect(200)
             .expect(res => {
                 expect(res.body.todo._id).toBe(id);
@@ -116,11 +131,31 @@ describe('DELETE /todos/:id', () => {
             });
     });
 
+    it('should not remove a todo that a user does not created', (done) => {
+        const id = dummyTodos[0]._id.toHexString();
+
+        request(app)
+            .delete(`/todos/${id}`)
+            .set('x-auth', dummyUsers[1].tokens[0].token)
+            .expect(404)
+            .end((err, res) => {
+                if (err) {
+                    return done(err);
+                }
+
+                Todo.findById(id).then(res => {
+                    // expect(res).toExist();
+                    done();
+                }).catch(err => done(err));
+            });
+    });
+
     it('should return 404 if todo not found', (done) => {
         const nonExistentId = (new ObjectID()).toHexString();
         
         request(app)
             .delete(`/todos/${nonExistentId}`)
+            .set('x-auth', dummyUsers[1].tokens[0].token)
             .expect(404)
             .end(done);
     });
@@ -130,6 +165,7 @@ describe('DELETE /todos/:id', () => {
         
         request(app)
             .delete(`/todos/${wrongObjectId}`)
+            .set('x-auth', dummyUsers[1].tokens[0].token)
             .expect(404)
             .end(done);
     });
@@ -142,6 +178,7 @@ describe('PATCH /todos/:id', () => {
 
         request(app)
             .patch(`/todos/${id}`)
+            .set('x-auth', dummyUsers[0].tokens[0].token)
             .send({
                 completed: true,
                 text
@@ -154,12 +191,28 @@ describe('PATCH /todos/:id', () => {
             .end(done);
     });
 
+    it('should not update the todo created by other user', (done) => {
+        const id = dummyTodos[0]._id.toHexString();
+        const text = 'This should be the new text';
+
+        request(app)
+            .patch(`/todos/${id}`)
+            .set('x-auth', dummyUsers[1].tokens[0].token)
+            .send({
+                completed: true,
+                text
+            })
+            .expect(404)
+            .end(done);
+    });
+
     it('should clear completedAt when todo is not completed', (done) => {
         const id = dummyTodos[1]._id.toHexString();
         const completed = false;
 
         request(app)
             .patch(`/todos/${id}`)
+            .set('x-auth', dummyUsers[1].tokens[0].token)
             .send({
                 completed
             })
@@ -287,7 +340,7 @@ describe('POST /users/login', () => {
                 }
 
                 User.findById(dummyUsers[1]._id).then(user => {
-                    expect(user.tokens.length).toBe(0);
+                    expect(user.tokens.length).toBe(1);
                     done();
                 }).catch(err => done(err));
             });
